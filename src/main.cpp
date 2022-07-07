@@ -30,7 +30,7 @@ int main() {
     
     // qp algorithm parameter set
     qpPlanConfigure qp_config;
-    qp_config.size = 60;
+    qp_config.size = 60; //60
     qp_config.w_cost_dl = 100000; //25000 for original
     qp_config.w_cost_ddl = 50;
     qp_config.w_cost_dddl = 20;
@@ -38,12 +38,16 @@ int main() {
     qp_config.w_cost_end_l = 15;
     qp_config.w_cost_end_dl = 15;
     qp_config.w_cost_end_ddl = 15;
-    qp_config.w_cost_center = 1200;
+    qp_config.w_cost_center = 1200; //1200
     qp_config.host_d1 = 3;
     qp_config.host_d2 = 3;
     qp_config.host_w = 1.63;
     qp_config.obs_width = 2;
     qp_config.obs_length = 5;
+    qp_config.delta_dl_max = 10;
+    qp_config.delta_ddl_max = 20;
+    qp_config.dl_max = 10;
+    qp_config.ddl_max = 3;
 
     // init reference line smooth, reference line must have 181 points
     refLineSmoother smoother(2,2,3,-0.2,0.2,181);
@@ -147,8 +151,8 @@ int main() {
         getCovexBound(init_path,obs_array_frenet,qp_config,low_bound,upper_bound);
 
 
-        // final_path_solver.updateBound(low_bound,upper_bound,spp_frenet);
-        final_path_solver.updateBoundWithDpPath(low_bound,upper_bound,init_path,spp_frenet);
+        final_path_solver.updateBound(low_bound,upper_bound,spp_frenet);
+        // final_path_solver.updateBoundWithDpPath(low_bound,upper_bound,init_path,spp_frenet);
         vector<frenet> qp_frenet_path;
         final_path_solver.getNewPath(qp_frenet_path,spp_frenet);
         vector<waypoint> qp_final_path;
@@ -177,7 +181,7 @@ int main() {
         plt::ylim(vehicle.y - 30,vehicle.y + 80);
         plt::title("plot frenet_path");
         plt::grid(true);
-        plt::pause(0.1);
+        plt::pause(0.5);
 
         control = ref_match_index+150;
         vehicle = covertFromWaypoint(qp_final_path.at(0));

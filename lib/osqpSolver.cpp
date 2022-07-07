@@ -131,7 +131,7 @@ qpPathSolver::qpPathSolver(const qpPlanConfigure &config_,const frenet& start_po
         :size(config_.size), config(config_), plan_start(start_point)
 {
     NumberOfVariables = 3*size;
-    NumberOfConstraints = 9*size-2;
+    NumberOfConstraints = 11*size-4;
 
     /*create hessian matrix*/
     // dl matrix
@@ -197,13 +197,14 @@ qpPathSolver::qpPathSolver(const qpPlanConfigure &config_,const frenet& start_po
     double end_l_desire = 0;
     double end_dl_desire = 0;
     double end_ddl_desire = 0;
-    Eigen::VectorXd f = Eigen::VectorXd::Zero(3*size);
-    for(int i =0;i<size;++i)
-        f[3*i] = (upper_conv_space[i]+low_conv_space[i])/2;
-    gradient = -2*config.w_cost_center*f;
-    gradient[3*size-3] = gradient[3*size-3] - 2*config.w_cost_end_l*end_l_desire;
-    gradient[3*size-2] = gradient[3*size-2] - 2*config.w_cost_end_dl*end_dl_desire;
-    gradient[3*size-1] = gradient[3*size-1] - 2*config.w_cost_end_ddl*end_ddl_desire;
+    // Eigen::VectorXd f = Eigen::VectorXd::Zero(3*size);
+    // for(int i =0;i<size;++i)
+    //     f[3*i] = (upper_conv_space[i]+low_conv_space[i])/2;
+    // gradient = -2*config.w_cost_center*f;
+    // gradient[3*size-3] = gradient[3*size-3] - 2*config.w_cost_end_l*end_l_desire;
+    // gradient[3*size-2] = gradient[3*size-2] - 2*config.w_cost_end_dl*end_dl_desire;
+    // gradient[3*size-1] = gradient[3*size-1] - 2*config.w_cost_end_ddl*end_ddl_desire;
+    gradient = Eigen::VectorXd::Zero(3*size);
 
 
 
@@ -228,7 +229,8 @@ qpPathSolver::qpPathSolver(const qpPlanConfigure &config_,const frenet& start_po
     double d2 = config.host_d2;
     double w = config.host_w;
     spMat A_ieq(4*size,3*size);
-    for(int i =0;i<size;++i)
+    // neglect the start point
+    for(int i =1;i<size;++i)
     {
         std::vector<T> tem_vec = {
                 {4*i,3*i,1},{4*i,3*i+1,d1},
@@ -240,6 +242,8 @@ qpPathSolver::qpPathSolver(const qpPlanConfigure &config_,const frenet& start_po
     }
     A_ieq.setFromTriplets(triVector.begin(),triVector.end());
     triVector.clear();
+    // std::cout<<"-------inequation constraints------"<<std::endl;
+    // std::cout<<A_ieq.block(0,0,8,6)<<std::endl;
 
     /* create inequation constraints matrix low_ieq and upper_ieq */
     int vehicle_front_index = std::ceil(d1/ds), vehicle_back_index = std::ceil(d2/ds);
@@ -269,7 +273,8 @@ qpPathSolver::qpPathSolver(const qpPlanConfigure &config_,const frenet& start_po
     }
     A_start.setFromTriplets(triVector.begin(),triVector.end());
     triVector.clear();
-
+    // std::cout<<"-------start constraints------"<<std::endl;
+    // std::cout<<A_start.block(0,0,6,6)<<std::endl;
 
     Eigen::VectorXd low_start = -1e8*Eigen::VectorXd::Ones(3*size);
     Eigen::VectorXd upper_start = 1e8*Eigen::VectorXd::Ones(3*size);
@@ -280,24 +285,60 @@ qpPathSolver::qpPathSolver(const qpPlanConfigure &config_,const frenet& start_po
     upper_start[1] = plan_start.l_diff;
     upper_start[2] = plan_start.l_2diff;
 
+
+
+    /* create dl and ddl difference minus constraints */
+    spMat A_dl_minus(size-1,3*size);
+    for(int i =0;i<size-1;++i)
+    {
+        std::vector<T> temp_vec = {{i,3*i+1,-1},{i,3*i+4,1}};
+        triVector.insert(triVector.end(),temp_vec.begin(),temp_vec.end());
+    }
+    A_dl_minus.setFromTriplets(triVector.begin(),triVector.end());
+    triVector.clear();
+
+    Eigen::VectorXd low_dl_minus = -config.delta_dl_max*Eigen::VectorXd::Ones(size-1);
+    Eigen::VectorXd upper_dl_minus = config.delta_dl_max*Eigen::VectorXd::Ones(size-1);
+
+    spMat A_ddl_minus(size-1,3*size);
+    for(int i =0;i<size-1;++i)
+    {
+        std::vector<T> temp_vec = {{i,3*i+2,-1},{i,3*i+5,1}};
+        triVector.insert(triVector.end(),temp_vec.begin(),temp_vec.end());
+    }
+    A_ddl_minus.setFromTriplets(triVector.begin(),triVector.end());
+    triVector.clear();
+
+    Eigen::VectorXd low_ddl_minus = -config.delta_ddl_max*Eigen::VectorXd::Ones(size-1);
+    Eigen::VectorXd upper_ddl_minus = config.delta_ddl_max*Eigen::VectorXd::Ones(size-1);
+
+
+
     /* get final matrixes */
-    linearMatrix.resize(9*size-2,3*size);
+    linearMatrix.resize(11*size-4,3*size);
     linearMatrix.topRows(2*size-2) = Aeq;
     linearMatrix.middleRows(2*size-2,4*size) = A_ieq;
-    linearMatrix.bottomRows(3*size) = A_start;
+    linearMatrix.middleRows(6*size-2,3*size) = A_start;
+    linearMatrix.middleRows(9*size-2,size-1) = A_dl_minus;
+    linearMatrix.bottomRows(size-1) = A_ddl_minus;
 
-    lowerBound.resize(9*size-2);
-    upperBound.resize(9*size-2);
+    lowerBound.resize(11*size-4);
+    upperBound.resize(11*size-4);
 
     //set for lowBound
     lowerBound.head(2*size-2) = low_eq;
     lowerBound.segment(2*size-2,4*size) = low_ieq;
-    lowerBound.tail(3*size) = low_start;
+    lowerBound.segment(6*size-2,3*size) = low_start;
+    lowerBound.segment(9*size-2,size-1) = low_dl_minus;
+    lowerBound.tail(size-1) = low_ddl_minus;
+    // std::cout<<"lowerBound_ori: \n"<<lowerBound<<std::endl;
 
     //set for upperBound
     upperBound.head(2*size-2) = upper_eq;
     upperBound.segment(2*size-2,4*size) = upper_ieq;
-    upperBound.tail(3*size) = upper_start;
+    upperBound.segment(6*size-2,3*size) = upper_start;
+    upperBound.segment(9*size-2,size-1) = upper_dl_minus;
+    upperBound.tail(size-1) = upper_ddl_minus;
 
 
     /* init solver*/
@@ -331,8 +372,10 @@ void qpPathSolver::updateBound(const Eigen::VectorXd &low_conv_space, const Eige
     double d2 = config.host_d2;
     double w = config.host_w;
     int vehicle_front_index = std::ceil(d1/ds), vehicle_back_index = std::ceil(d2/ds);
-    Eigen::VectorXd low_ieq(4*size),upper_ieq(4*size);
-    for(int i =0;i<size;i++)
+    Eigen::VectorXd low_ieq = Eigen::VectorXd::Zero(4*size);
+    Eigen::VectorXd upper_ieq = Eigen::VectorXd::Zero(4*size);
+    // neglect the start point
+    for(int i =1;i<size;i++)
     {
         int front_index = std::min(i+vehicle_front_index,size-1);
         int back_index = std::max(i-vehicle_back_index,0);
@@ -357,28 +400,58 @@ void qpPathSolver::updateBound(const Eigen::VectorXd &low_conv_space, const Eige
     upper_start[0] = plan_start.l;
     upper_start[1] = plan_start.l_diff;
     upper_start[2] = plan_start.l_2diff;
+    // add dl and ddl constraints
+    for(int i=1;i<size;++i)
+    {
+        low_start[3*i+1] = -config.dl_max;
+        low_start[3*i+2] = -config.ddl_max;
+        upper_start[3*i+1] = config.dl_max;
+        upper_start[3*i+2] = config.ddl_max;
+    }
 
     /* update gradient vector */
     double end_l_desire = 0;
     double end_dl_desire = 0;
     double end_ddl_desire = 0;
-    Eigen::VectorXd f = Eigen::VectorXd::Zero(3*size);
     for(int i =0;i<size;++i)
-        f[3*i] = (upper_conv_space[i]+low_conv_space[i])/2;
-    gradient = -2*config.w_cost_center*f;
+    {
+        double x = (upper_conv_space[i]+low_conv_space[i])/2;
+        if(abs(x)>0.3)
+            gradient[3*i] = -2*config.w_cost_center*x;
+        else
+            gradient[3*i] = -2*x;
+
+    }
     gradient[3*size-3] = gradient[3*size-3] - 2*config.w_cost_end_l*end_l_desire;
     gradient[3*size-2] = gradient[3*size-2] - 2*config.w_cost_end_dl*end_dl_desire;
     gradient[3*size-1] = gradient[3*size-1] - 2*config.w_cost_end_ddl*end_ddl_desire;
 
 
-    lowerBound.head(2*size-2) = low_eq;
     lowerBound.segment(2*size-2,4*size) = low_ieq;
-    lowerBound.tail(3*size) = low_start;
+    lowerBound.segment(6*size-2,3*size) = low_start;
+    // std::cout<<"------------"<<std::endl;
+    // std::cout<<"upper_bound: \n"<<upper_conv_space.head(6)<<std::endl;
+    // std::cout<<"low_bound: \n"<<low_conv_space.head(6)<<std::endl;
+    // std::cout<<"gradient:\n"<<gradient.head(9)<<std::endl;
+    // std::cout<<"low_ieq: \n"<<low_ieq.head(16)<<std::endl;
+    // std::cout<<"high_ieq: \n"<<upper_ieq.head(16)<<std::endl;
+    //std::cout<<"low_start: \n"<<low_start<<std::endl;
+    // std::cout<<"high_start: \n"<<upper_start.head(12)<<std::endl;
+
+
 
     //set for upperBound
-    upperBound.head(2*size-2) = upper_eq;
     upperBound.segment(2*size-2,4*size) = upper_ieq;
-    upperBound.tail(3*size) = upper_start;
+    upperBound.segment(6*size-2,3*size) = upper_start;
+    
+
+    std::ofstream out_file1("../lowBound.txt",std::ios::trunc);
+    out_file1<<"---------\n"<<lowerBound;
+    out_file1.close();
+
+    std::ofstream out_file2("../uppperBound.txt",std::ios::trunc);
+    out_file2<<"---------\n"<<upperBound;
+    out_file2.close();
 
 
     /* update bound and gradient */

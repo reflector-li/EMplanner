@@ -131,6 +131,11 @@ typedef struct qpPlanConfigure{
     double host_d2 = 0;
     double host_w = 0;
 
+    double delta_dl_max = 0;
+    double delta_ddl_max = 0;
+    double dl_max = 0;
+    double ddl_max = 0;
+
     int size = 0;
 
 }qpPlanConfigure;
