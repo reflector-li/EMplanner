@@ -197,13 +197,6 @@ qpPathSolver::qpPathSolver(const qpPlanConfigure &config_,const frenet& start_po
     double end_l_desire = 0;
     double end_dl_desire = 0;
     double end_ddl_desire = 0;
-    // Eigen::VectorXd f = Eigen::VectorXd::Zero(3*size);
-    // for(int i =0;i<size;++i)
-    //     f[3*i] = (upper_conv_space[i]+low_conv_space[i])/2;
-    // gradient = -2*config.w_cost_center*f;
-    // gradient[3*size-3] = gradient[3*size-3] - 2*config.w_cost_end_l*end_l_desire;
-    // gradient[3*size-2] = gradient[3*size-2] - 2*config.w_cost_end_dl*end_dl_desire;
-    // gradient[3*size-1] = gradient[3*size-1] - 2*config.w_cost_end_ddl*end_ddl_desire;
     gradient = Eigen::VectorXd::Zero(3*size);
 
 
@@ -242,26 +235,13 @@ qpPathSolver::qpPathSolver(const qpPlanConfigure &config_,const frenet& start_po
     }
     A_ieq.setFromTriplets(triVector.begin(),triVector.end());
     triVector.clear();
-    // std::cout<<"-------inequation constraints------"<<std::endl;
-    // std::cout<<A_ieq.block(0,0,8,6)<<std::endl;
+
 
     /* create inequation constraints matrix low_ieq and upper_ieq */
     int vehicle_front_index = std::ceil(d1/ds), vehicle_back_index = std::ceil(d2/ds);
-    Eigen::VectorXd low_ieq(4*size),upper_ieq(4*size);
-    for(int i =0;i<size;i++) //
-    {
-        int front_index = std::min(i+vehicle_front_index,size-1);
-        int back_index = std::max(i-vehicle_back_index,0);
-        low_ieq[4*i] = low_conv_space[front_index] - w/2;
-        low_ieq[4*i+1] = low_conv_space[front_index] + w/2;
-        low_ieq[4*i+2] = low_conv_space[back_index] - w/2;
-        low_ieq[4*i+3] = low_conv_space[back_index] + w/2;
+    Eigen::VectorXd low_ieq = Eigen::VectorXd::Zero(4*size);
+    Eigen::VectorXd upper_ieq = Eigen::VectorXd::Zero(4*size);
 
-        upper_ieq[4*i] = upper_conv_space[front_index] - w/2;
-        upper_ieq[4*i+1] = upper_conv_space[front_index] + w/2;
-        upper_ieq[4*i+2] = upper_conv_space[back_index] - w/2;
-        upper_ieq[4*i+3] = upper_conv_space[back_index] + w/2;
-    }
 
 
 
@@ -273,8 +253,7 @@ qpPathSolver::qpPathSolver(const qpPlanConfigure &config_,const frenet& start_po
     }
     A_start.setFromTriplets(triVector.begin(),triVector.end());
     triVector.clear();
-    // std::cout<<"-------start constraints------"<<std::endl;
-    // std::cout<<A_start.block(0,0,6,6)<<std::endl;
+
 
     Eigen::VectorXd low_start = -1e8*Eigen::VectorXd::Ones(3*size);
     Eigen::VectorXd upper_start = 1e8*Eigen::VectorXd::Ones(3*size);
@@ -415,7 +394,8 @@ void qpPathSolver::updateBound(const Eigen::VectorXd &low_conv_space, const Eige
     double end_ddl_desire = 0;
     for(int i =0;i<size;++i)
     {
-        double x = (upper_conv_space[i]+low_conv_space[i])/2;
+        // double x = (upper_conv_space[i]+low_conv_space[i])/2;
+        double x = low_conv_space[i] + 1.5;
         if(abs(x)>0.3)
             gradient[3*i] = -2*config.w_cost_center*x;
         else
@@ -444,16 +424,6 @@ void qpPathSolver::updateBound(const Eigen::VectorXd &low_conv_space, const Eige
     upperBound.segment(2*size-2,4*size) = upper_ieq;
     upperBound.segment(6*size-2,3*size) = upper_start;
     
-
-    std::ofstream out_file1("../lowBound.txt",std::ios::trunc);
-    out_file1<<"---------\n"<<lowerBound;
-    out_file1.close();
-
-    std::ofstream out_file2("../uppperBound.txt",std::ios::trunc);
-    out_file2<<"---------\n"<<upperBound;
-    out_file2.close();
-
-
     /* update bound and gradient */
     solver.updateBounds(lowerBound,upperBound);
     solver.updateGradient(gradient);

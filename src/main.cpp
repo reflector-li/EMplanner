@@ -181,7 +181,7 @@ int main() {
         plt::ylim(vehicle.y - 30,vehicle.y + 80);
         plt::title("plot frenet_path");
         plt::grid(true);
-        plt::pause(0.5);
+        plt::pause(0.1);
 
         control = ref_match_index+150;
         vehicle = covertFromWaypoint(qp_final_path.at(0));
