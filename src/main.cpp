@@ -11,8 +11,6 @@ using namespace std;
 using namespace Ipopt;
 
 
-
-
 int main() {
     
     // dp algorithm parameter set
