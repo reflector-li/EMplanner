@@ -74,7 +74,7 @@ refLineSmoother::refLineSmoother(double w_cost_smooth_, double w_cost_ref_, doub
 
     /* init solver*/
     solver.settings()->setWarmStart(true);
-
+    solver.settings()->setVerbosity(false);
 
     solver.data()->setNumberOfVariables(NumberOfVariables);
     solver.data()->setNumberOfConstraints(NumberOfConstraints);
@@ -322,6 +322,7 @@ qpPathSolver::qpPathSolver(const qpPlanConfigure &config_,const frenet& start_po
 
     /* init solver*/
     solver.settings()->setWarmStart(true);
+    solver.settings()->setVerbosity(false);
 
     solver.data()->setNumberOfVariables(NumberOfVariables);
     solver.data()->setNumberOfConstraints(NumberOfConstraints);

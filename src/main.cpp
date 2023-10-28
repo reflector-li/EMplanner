@@ -85,7 +85,12 @@ int main() {
     scene_channel.schemaName = foxglove::SceneUpdate::descriptor()->full_name();
     scene_channel.schema = foxglove::base64Encode(FoxgloveServer::SerializeFdSet(foxglove::SceneUpdate::descriptor()));
   
-
+    foxglove::ChannelWithoutId data_channel;
+    data_channel.topic = "along_edge";
+    data_channel.encoding = "protobuf";
+    data_channel.schemaName = foxglove::Point2::descriptor()->full_name();
+    data_channel.schema = foxglove::base64Encode(FoxgloveServer::SerializeFdSet(foxglove::Point2::descriptor()));
+    
     foxglove::ChannelWithoutId tf_channel;
     tf_channel.topic = "root2bese_link";
     tf_channel.encoding = "protobuf";
@@ -93,9 +98,10 @@ int main() {
     tf_channel.schema = foxglove::base64Encode(FoxgloveServer::SerializeFdSet(foxglove::FrameTransform::descriptor()));
 
 
-    const auto channelIds = vis_server.addChannels({scene_channel,tf_channel});
+    const auto channelIds = vis_server.addChannels({scene_channel,data_channel,tf_channel});
     const auto scene_channel_id = channelIds[0];
-    const auto tf_channel_id = channelIds[1];
+    const auto tf_channel_id = channelIds[2];
+    const auto data_channel_id = channelIds[1];
 
 
 
@@ -280,6 +286,20 @@ int main() {
         vis_server.sendMessages(scene_channel_id,now,reinterpret_cast<const uint8_t*>(scene_serializedMsg.data()),
                              scene_serializedMsg.size());
 
+
+        // get current vehicle Lateral distance
+        int test_match_index = getMatchPoint(vehicle,-1,ref_path);
+        waypoint test_match_point = ref_path.at(test_match_index);
+        waypoint test_project_point;
+        getProjectPoint(vehicle,test_match_point,test_project_point);
+        frenet test_frenet;
+        cardesian2Frenet(vehicle,test_match_index,test_project_point,ref_path,index_S,test_frenet);
+        foxglove::Point2 vis_data_point;
+        vis_data_point.set_x(static_cast<double>(control));
+        vis_data_point.set_y(test_frenet.l);
+        std::string data_serializedMsg = vis_data_point.SerializeAsString();
+        vis_server.sendMessages(data_channel_id,now,reinterpret_cast<const uint8_t*>(data_serializedMsg.data()),
+                             data_serializedMsg.size());
 
 //         plt::cla();
 //         plt::plotTrajectory(global_path);

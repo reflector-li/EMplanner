@@ -2,6 +2,7 @@
 #define VISUALIZATION_H
 
 #include "foxglove/SceneUpdate.pb.h"
+#include "foxglove/Point2.pb.h"
 #include "foxglove/FrameTransform.pb.h"
 #include "server_config.h"
 #include "frenetUtils.h"

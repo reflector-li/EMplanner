@@ -4,6 +4,8 @@ This branch using foxglove-studio as visualization tool.
 
 ## 1. compile method
 
+foxglove-cpp 的参考代码来自于这里[参考](https://github.com/reflector-li/foxglove_local_cpp/blob/main/examples/src/example_server_protobuf.cpp)。
+
 ```shell
 $ mkdir build
 $ cd build
