@@ -56,7 +56,7 @@ int main() {
 
     //global obstacle set
     vector<planPointInfo> obs_array;
-    readObs(obs_array,"../data/obstacles.txt");
+    // readObs(obs_array,"../data/obstacles.txt");
 
     //vehicle init position
     planPointInfo vehicle;
